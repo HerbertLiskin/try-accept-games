@@ -1,5 +1,5 @@
 import * as PIXI from 'pixi.js';
-import { SCROLL_SPEED, GAP_SIZE } from './constants';
+import { SCROLL_SPEED } from './constants';
 
 export interface ObstaclePair {
   top: PIXI.Sprite | null;
@@ -36,34 +36,69 @@ export class Obstacles {
     
     const x = this.app.screen.width + 100;
 
+    // Calculate dynamic gap size (e.g., 45% of screen height)
+    const dynamicGapSize = Math.min(this.app.screen.height * 0.45, 450);
+    
     // Calculate random gap position
-    const minH = 150;
-    const maxH = this.app.screen.height - minH - GAP_SIZE;
+    const minH = this.app.screen.height * 0.15;
+    const maxH = this.app.screen.height - minH - dynamicGapSize;
     const gapTop = Math.floor(Math.random() * (maxH - minH + 1) + minH);
+
+    // Calibrated non-linear scaling
+    // Mobile: Larger noose (150px base)
+    // Desktop: Final pass - even larger nooses
+    const targetNooseHeight = 150 + Math.max(0, this.app.screen.height - 450) * 0.25;
+    const nooseScale = targetNooseHeight / this.nooseTex.height;
 
     if (spawnType === 0 || spawnType === 1) {
       top = new PIXI.Sprite(this.nooseTex);
-      top.anchor.set(0.5, 0); // top-center
-      top.position.set(x, 0);
-      top.width = 160; // Standardize width like classic pipes
-      top.height = gapTop;
+      top.anchor.set(0.5, 1);
+      top.position.set(x, gapTop);
+      
+      top.scale.set(nooseScale);
+      
       this.container.addChild(top);
     }
 
     if (spawnType === 0 || spawnType === 2) {
       bottom = new PIXI.Sprite(this.razorTex);
-      const gapBottom = gapTop + GAP_SIZE;
+      const gapBottom = gapTop + dynamicGapSize;
       bottom.anchor.set(0.5, 0); // top-center
       bottom.position.set(x, gapBottom);
-      bottom.width = 160; // Standardize width
-      bottom.height = this.app.screen.height - gapBottom;
+      
+      // Decouple razor scale: smaller on mobile AND sleeker on desktop per request
+      let razorScale = nooseScale;
+      if (this.app.screen.height < 600) {
+        razorScale *= 0.8; // Mobile
+      } else {
+        razorScale *= 0.7; // Desktop (even sleeker)
+      }
+      bottom.scale.set(razorScale);
+
+      // If it's too short to reach the ground, scale it up proportionally
+      const groundY = this.app.screen.height;
+      if (bottom.y + (bottom.texture.height * bottom.scale.y) < groundY) {
+        const requiredScale = (groundY - bottom.y) / bottom.texture.height;
+        bottom.scale.set(requiredScale);
+      }
+
+      // Tighter width cap for razors
+      const maxWidth = this.app.screen.width * 0.12;
+      if (bottom.width > maxWidth) {
+        bottom.width = maxWidth;
+        bottom.scale.y = Math.abs(bottom.scale.x); 
+        if (bottom.y + (bottom.texture.height * bottom.scale.y) < groundY) {
+            bottom.height = groundY - bottom.y; 
+        }
+      }
+      
       this.container.addChild(bottom);
     }
 
     this.pairs.push({ top, bottom, passed: false });
   }
 
-  update(delta: PIXI.Ticker, spawnRate: number) {
+  update(delta: PIXI.Ticker, spawnRate: number, multiplier: number = 1) {
     this.timeSinceLastSpawn += delta.deltaMS;
     if (this.timeSinceLastSpawn >= spawnRate) {
       this.spawn();
@@ -74,8 +109,8 @@ export class Obstacles {
       const pair = this.pairs[i];
       let isOffScreen = false;
 
-      if (pair.top) pair.top.x -= SCROLL_SPEED * delta.deltaTime;
-      if (pair.bottom) pair.bottom.x -= SCROLL_SPEED * delta.deltaTime;
+      if (pair.top) pair.top.x -= SCROLL_SPEED * delta.deltaTime * multiplier;
+      if (pair.bottom) pair.bottom.x -= SCROLL_SPEED * delta.deltaTime * multiplier;
 
       if (pair.top && pair.top.x < -100) isOffScreen = true;
       if (pair.bottom && pair.bottom.x < -100) isOffScreen = true;
@@ -110,18 +145,40 @@ export class Obstacles {
     for (const pair of this.pairs) {
       if (pair.top) {
         const topBounds = pair.top.getBounds();
-        if (this.rectIntersect(hitbox, topBounds)) return 'top';
+        // Inset horizontal by 35% and vertical by 5% because the noose has significant transparent space
+        // and its visual area is even narrower relative to its total width now.
+        const wInset = (topBounds.maxX - topBounds.minX) * 0.35;
+        const hInset = (topBounds.maxY - topBounds.minY) * 0.05;
+        const reducedTopBounds = {
+          minX: topBounds.minX + wInset,
+          minY: topBounds.minY + hInset,
+          maxX: topBounds.maxX - wInset,
+          maxY: topBounds.maxY - hInset,
+        };
+        if (this.rectIntersect(hitbox, reducedTopBounds)) return 'top';
       }
       
       if (pair.bottom) {
         const bottomBounds = pair.bottom.getBounds();
-        if (this.rectIntersect(hitbox, bottomBounds)) return 'bottom';
+        // Inset horizontal by 25% and vertical by 10% because of sprite transparent space
+        const wInset = (bottomBounds.maxX - bottomBounds.minX) * 0.25;
+        const hInset = (bottomBounds.maxY - bottomBounds.minY) * 0.1;
+        const reducedBottomBounds = {
+          minX: bottomBounds.minX + wInset,
+          minY: bottomBounds.minY + hInset,
+          maxX: bottomBounds.maxX - wInset,
+          maxY: bottomBounds.maxY - hInset,
+        };
+        if (this.rectIntersect(hitbox, reducedBottomBounds)) return 'bottom';
       }
     }
     return 'none';
   }
 
-  private rectIntersect(r1: {minX: number, maxX: number, minY: number, maxY: number}, r2: PIXI.Bounds) {
+  private rectIntersect(
+    r1: {minX: number, maxX: number, minY: number, maxY: number}, 
+    r2: {minX: number, maxX: number, minY: number, maxY: number}
+  ) {
     return !(r2.minX > r1.maxX || 
              r2.maxX < r1.minX || 
              r2.minY > r1.maxY ||
