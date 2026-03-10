@@ -1,7 +1,7 @@
 import { initTRPC } from '@trpc/server';
 import { z } from 'zod';
-import { db } from './db';
-import { scores } from './db/schema';
+import { db } from './db/index.js';
+import { scores } from './db/schema.js';
 import { desc } from 'drizzle-orm';
 
 const t = initTRPC.create();
