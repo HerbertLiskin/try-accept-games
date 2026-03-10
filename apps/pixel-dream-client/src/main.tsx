@@ -12,7 +12,7 @@ export function Root() {
     trpc.createClient({
       links: [
         httpBatchLink({
-          url: 'http://localhost:3001/trpc',
+          url: `${import.meta.env.VITE_API_URL || 'http://localhost:3001'}/trpc`,
         }),
       ],
     })
