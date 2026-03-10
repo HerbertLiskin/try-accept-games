@@ -1,0 +1,41 @@
+@import url('https://fonts.googleapis.com/css2?family=Press+Start+2P&display=swap');
+
+@import "tailwindcss";
+
+@theme {
+  --color-background: #1a0f2e;
+  --color-brandRed: #ff4d4d;
+  --color-brandPurpleLight: #c9b1ff;
+  --color-brandPurpleDark: #a795ca;
+  --font-pixel: "Press Start 2P", cursive;
+}
+
+@layer base {
+  body {
+    @apply m-0 flex overflow-hidden bg-background text-[#e0dced] min-w-[320px] min-h-screen font-pixel;
+    touch-action: none;
+    place-items: center;
+  }
+
+  h1, h2, h3, h4, h5, h6 {
+    @apply leading-relaxed mb-4;
+    text-shadow: 2px 2px 0px #000;
+  }
+
+  button {
+    @apply rounded-none border-4 border-white px-[1.2em] py-[0.8em] text-[1em] font-medium bg-[#3b285c] text-white cursor-pointer uppercase transition-colors duration-200 active:translate-y-[2px] active:translate-x-[2px];
+    box-shadow: 4px 4px 0px #000;
+  }
+  
+  button:hover {
+    @apply bg-[#553a85];
+  }
+  
+  button:active {
+    box-shadow: 2px 2px 0px #000;
+  }
+
+  input {
+    @apply p-[0.8em] border-4 border-white bg-background text-white mr-2 focus:outline-none focus:border-[#9d7bdf] font-pixel;
+  }
+}
