@@ -40,16 +40,35 @@ export class SoundManager {
     return this.isMuted;
   }
 
+  getCurrentTrackName() {
+    const src = this.tracks[this.currentTrackIndex];
+    return src.split('/').pop()?.replace('.mp3', '') || 'Unknown';
+  }
+
   nextTrack() {
     this.currentTrackIndex = (this.currentTrackIndex + 1) % this.tracks.length;
+    this.applyTrackChange();
+  }
+
+  prevTrack() {
+    this.currentTrackIndex = (this.currentTrackIndex - 1 + this.tracks.length) % this.tracks.length;
+    this.applyTrackChange();
+  }
+
+  private applyTrackChange() {
     if (this.bgmAudio) {
+      const wasPlaying = !this.bgmAudio.paused;
       this.bgmAudio.pause();
       this.bgmAudio.src = this.tracks[this.currentTrackIndex];
       this.bgmAudio.load();
-      if (!this.isMuted) {
+      if (wasPlaying && !this.isMuted) {
          this.bgmAudio.play().catch(e => console.warn('Audio auto-play prevented', e));
       }
     }
+  }
+
+  isBgmPlaying() {
+    return this.bgmAudio ? !this.bgmAudio.paused : false;
   }
 }
 

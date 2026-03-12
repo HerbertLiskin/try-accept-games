@@ -1,6 +1,7 @@
 import { useState, useCallback, useRef, useEffect } from 'react';
 import GameCanvas from './components/GameCanvas';
 import Leaderboard from './components/Leaderboard';
+import MusicPlayer from './components/MusicPlayer';
 import { soundManager } from './game/SoundManager';
 import './App.css';
 
@@ -233,8 +234,8 @@ function App() {
             <div className="flex-1 overflow-y-auto p-4 pb-4 custom-scrollbar">
               <Leaderboard score={score} />
             </div>
-            <div className="p-8 pt-0 pb-6 flex flex-col gap-4 justify-center">
-              <button className="w-full" onClick={startGame}>{t.tryAccept}</button>
+            <div className="p-8 pt-0 pb-6 flex flex-col gap-4 justify-center items-center">
+              <button onClick={startGame} className="w-full">{t.tryAccept}</button>
               <a 
                 href="https://band.link/ritualpriniatia" 
                 target="_blank" 
@@ -245,6 +246,9 @@ function App() {
               </a>
             </div>
           </div>
+        )}
+        {gameState !== 'LOADING' && gameState !== 'SPLASH' && (
+          <MusicPlayer />
         )}
       </div>
     </>

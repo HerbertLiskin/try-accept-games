@@ -50,6 +50,7 @@ export class GameManager {
   private lastFrogHeartSpawn = 0;
   private lastFrogRedEyesSpawn = 0;
   private lastFrogHypnoSpawn = 0;
+  private lastBeerSpawn = 0;
   private lastAnyCollectibleSpawn = 0;
   private rainbowHue = 0;
   private lives = 0;
@@ -59,7 +60,6 @@ export class GameManager {
   private effectsContainer!: PIXI.Container;
   private redEyesFrogSprite!: PIXI.Sprite;
   private hypnoFrogSprite!: PIXI.Sprite;
-  private lastBeerSpawn = 0;
   private beerEffectActive = false;
   private beerTimer = 0;
   private beerPhantoms: PIXI.Sprite[] = [];
@@ -142,15 +142,15 @@ export class GameManager {
     this.setupControls();
 
     const now = Date.now();
-    // Stagger initial spawns to introduce items earlier in the run
-    this.lastPillSpawn = now - PILL_SPAWN_RATE + 3000;
-    this.lastCoffeeSpawn = now - COFFEE_SPAWN_RATE + 6000;
-    this.lastCigaretteSpawn = now - CIGARETTE_SPAWN_RATE + 9000;
-    this.lastFrogHeartSpawn = now - FROG_HEART_SPAWN_RATE + 13000;
-    this.lastFrogRedEyesSpawn = now - FROG_REDEYES_SPAWN_RATE + 18000;
-    this.lastFrogHypnoSpawn = now - FROG_HYPNO_SPAWN_RATE + 24000;
-    this.lastBeerSpawn = now - BEER_SPAWN_RATE + 16000;
-    this.lastAnyCollectibleSpawn = now;
+    // Randomized initial offsets to ensure a different sequence every game
+    this.lastPillSpawn = now - Math.random() * PILL_SPAWN_RATE;
+    this.lastCoffeeSpawn = now - Math.random() * COFFEE_SPAWN_RATE;
+    this.lastCigaretteSpawn = now - Math.random() * CIGARETTE_SPAWN_RATE;
+    this.lastFrogHeartSpawn = now - Math.random() * FROG_HEART_SPAWN_RATE;
+    this.lastFrogRedEyesSpawn = now - Math.random() * FROG_REDEYES_SPAWN_RATE;
+    this.lastFrogHypnoSpawn = now - Math.random() * FROG_HYPNO_SPAWN_RATE;
+    this.lastBeerSpawn = now - Math.random() * BEER_SPAWN_RATE;
+    this.lastAnyCollectibleSpawn = now - 2000; // Allow first spawn soon
 
     this.lives = MAX_LIVES;
     this.updateLivesUI();
@@ -182,11 +182,6 @@ export class GameManager {
     this.livesContainer.x = this.app.screen.width / 2;
     this.livesContainer.y = 20;
     this.app.stage.addChild(this.livesContainer);
-  }
-
-  private getRandomOffset(baseRate: number): number {
-    // Adds +/- 30% timing offset to make spawns unpredictable
-    return (Math.random() * 0.6 - 0.3) * baseRate;
   }
 
   private updateLivesUI() {
@@ -770,23 +765,27 @@ export class GameManager {
         container.addChild(icon);
     }
 
-    if (combo > 1 || (this.coffeeEffectActive && this.cigaretteEffectActive) || (this.pillEffectActive && this.beerEffectActive) || (type === 'frog_heart' && this.lives >= MAX_LIVES)) {
-        const isPoopEffect = this.coffeeEffectActive && this.cigaretteEffectActive;
-        const isRushEffect = this.pillEffectActive && this.beerEffectActive;
-        const isHealthyEffect = type === 'frog_heart' && this.lives >= MAX_LIVES;
-        
+    const isHeart = type === 'frog_heart';
+    const isBeer = type === 'beer';
+    const isPoopEffect = this.coffeeEffectActive && this.cigaretteEffectActive;
+    const isBadCombo = this.pillEffectActive && this.beerEffectActive;
+    const isRushEffect = isBeer;
+    const isHealthyEffect = isHeart;
+
+    if (combo > 1 || isPoopEffect || isBadCombo || isRushEffect || isHealthyEffect) {
         const comboStyle = new PIXI.TextStyle({
             fontFamily: '"Press Start 2P"',
             fontSize: combo > 5 ? 32 : 24,
-            fill: isRushEffect ? 0xFFFF00 : (isPoopEffect ? 0xFF0000 : (isHealthyEffect ? 0x00FF00 : (combo > 5 ? 0xFFFF00 : 0xFF9900))), 
+            fill: isHealthyEffect ? 0x4dff4d : (isBadCombo ? 0xFFFF00 : (isRushEffect ? 0xFFFF00 : (isPoopEffect ? 0xFF0000 : (combo > 5 ? 0xFFFF00 : 0xFF9900)))), 
             stroke: { color: 0x000000, width: 6 },
-            dropShadow: { color: (isPoopEffect || isRushEffect || isHealthyEffect) ? 0x000000 : 0xff0000, alpha: 0.5, distance: 4, angle: Math.PI/4 }
+            dropShadow: { color: (isHealthyEffect || isPoopEffect || isBadCombo || isRushEffect) ? 0x000000 : 0xff0000, alpha: 0.5, distance: 4, angle: Math.PI/4 }
         });
 
         let textContent = `COMBO x${combo}`;
-        if (isRushEffect) textContent = 'РВАНУЛИ!';
+        if (isHealthyEffect) textContent = 'ЖИВУЧАЯ ТВАРЬ!';
+        else if (isBadCombo) textContent = 'ПЛОХОЕ СОЧЕТАНИЕ!';
+        else if (isRushEffect) textContent = 'РВАНУЛИ!';
         else if (isPoopEffect) textContent = 'ХОЧУ КАKАТЬ!';
-        else if (isHealthyEffect) textContent = 'ЖИВУЧАЯ ТВАРЬ!';
 
         const comboText = new PIXI.Text({ text: textContent, style: comboStyle });
         comboText.anchor.set(0.5);
@@ -920,5 +919,9 @@ export class GameManager {
     if (this.bgContainer) {
       this.bgContainer.filters = [];
     }
+  }
+
+  private getRandomOffset(rate: number): number {
+    return (Math.random() - 0.5) * rate * 0.4; // +/- 20% randomness
   }
 }
