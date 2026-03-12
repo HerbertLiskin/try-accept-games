@@ -7,13 +7,15 @@ import { desc } from 'drizzle-orm';
 const t = initTRPC.create();
 
 export const appRouter = t.router({
-  getLeaderboard: t.procedure.query(async () => {
-    const topScores = await db.query.scores.findMany({
-      orderBy: [desc(scores.score)],
-      limit: 10,
-    });
-    return topScores;
-  }),
+  getLeaderboard: t.procedure
+    .input(z.object({ limit: z.number().int().min(1).optional() }))
+    .query(async ({ input }) => {
+      const topScores = await db.query.scores.findMany({
+        orderBy: [desc(scores.score)],
+        limit: input.limit ?? 10,
+      });
+      return topScores;
+    }),
   submitScore: t.procedure
     .input(z.object({ name: z.string().min(1).max(20), score: z.number().int().min(0) }))
     .mutation(async ({ input }) => {

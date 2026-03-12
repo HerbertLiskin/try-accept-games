@@ -2,7 +2,7 @@ import * as PIXI from 'pixi.js';
 import { Player } from './Player';
 import { Background } from './Background';
 import { Obstacles } from './Obstacles';
-import { SCROLL_SPEED, OBSTACLE_SPAWN_RATE, PILL_SPAWN_RATE, COFFEE_SPAWN_RATE, CIGARETTE_SPAWN_RATE, FROG_HEART_SPAWN_RATE, FROG_REDEYES_SPAWN_RATE, FROG_HYPNO_SPAWN_RATE, INVULNERABILITY_DURATION, MAX_LIVES, PILL_DURATION, COFFEE_DURATION, CIGARETTE_DURATION, FROG_REDEYES_DURATION, FROG_HYPNO_DURATION } from './constants';
+import { SCROLL_SPEED, OBSTACLE_SPAWN_RATE, PILL_SPAWN_RATE, COFFEE_SPAWN_RATE, CIGARETTE_SPAWN_RATE, FROG_HEART_SPAWN_RATE, FROG_REDEYES_SPAWN_RATE, FROG_HYPNO_SPAWN_RATE, BEER_SPAWN_RATE, INVULNERABILITY_DURATION, MAX_LIVES, PILL_DURATION, COFFEE_DURATION, CIGARETTE_DURATION, FROG_REDEYES_DURATION, FROG_HYPNO_DURATION, BEER_DURATION } from './constants';
 import { soundManager } from './SoundManager';
 import { Collectibles } from './Collectibles';
 
@@ -53,6 +53,17 @@ export class GameManager {
   private lastAnyCollectibleSpawn = 0;
   private rainbowHue = 0;
   private lives = 0;
+  private comboCount = 0;
+  private lastCollectionTime = 0;
+  private readonly COMBO_TIMEOUT = 2000; 
+  private effectsContainer!: PIXI.Container;
+  private redEyesFrogSprite!: PIXI.Sprite;
+  private hypnoFrogSprite!: PIXI.Sprite;
+  private lastBeerSpawn = 0;
+  private beerEffectActive = false;
+  private beerTimer = 0;
+  private beerPhantoms: PIXI.Sprite[] = [];
+  private playerPosHistory: { x: number, y: number, rotation: number }[] = [];
 
   constructor(app: PIXI.Application, onGameOver: (score: number) => void) {
     this.app = app;
@@ -91,9 +102,9 @@ export class GameManager {
     const coffinTex = await PIXI.Assets.load('/coffin_sprite.png');
     this.coffinSprite = new PIXI.Sprite(coffinTex);
     this.coffinSprite.anchor.set(0.5);
-    // Center it horizontally, place it higher vertically in the underground scene
+    // Center it horizontally, place it significantly below for animation
     this.coffinSprite.x = this.app.screen.width / 2;
-    this.coffinSprite.y = this.app.screen.height + (this.app.screen.height * 0.35); // Higher up 
+    this.coffinSprite.y = this.app.screen.height * 2.5; 
     this.coffinSprite.scale.set(0.5);
     this.coffinSprite.visible = false;
     this.objContainer.addChild(this.coffinSprite);
@@ -110,7 +121,26 @@ export class GameManager {
     this.collectibles = new Collectibles(this.app, this.objContainer);
     await this.collectibles.init();
 
+    this.effectsContainer = new PIXI.Container();
+
+    const redEyesTex = await PIXI.Assets.load('/frog_redeyes_sprite.png');
+    this.redEyesFrogSprite = new PIXI.Sprite(redEyesTex);
+    this.redEyesFrogSprite.anchor.set(0.5);
+    this.redEyesFrogSprite.position.set(this.app.screen.width / 2, this.app.screen.height / 2);
+    this.redEyesFrogSprite.visible = false;
+    this.redEyesFrogSprite.alpha = 0.4;
+    this.app.stage.addChild(this.redEyesFrogSprite);
+
+    const hypnoTex = await PIXI.Assets.load('/frog_hypno_sprite.png');
+    this.hypnoFrogSprite = new PIXI.Sprite(hypnoTex);
+    this.hypnoFrogSprite.anchor.set(0.5);
+    this.hypnoFrogSprite.position.set(this.app.screen.width / 2, this.app.screen.height / 2);
+    this.hypnoFrogSprite.visible = false;
+    this.hypnoFrogSprite.alpha = 0.4;
+    this.app.stage.addChild(this.hypnoFrogSprite);
+
     this.setupUI();
+    this.app.stage.addChild(this.effectsContainer); // Topmost
     this.setupControls();
 
     soundManager.init();
@@ -118,13 +148,17 @@ export class GameManager {
 
     const now = Date.now();
     // Stagger initial spawns to introduce items earlier in the run
-    this.lastPillSpawn = now - PILL_SPAWN_RATE + 3000; // Spawns at ~3s
-    this.lastCoffeeSpawn = now - COFFEE_SPAWN_RATE + 6000; // Spawns at ~6s
-    this.lastCigaretteSpawn = now - CIGARETTE_SPAWN_RATE + 9000; // Spawns at ~9s
-    this.lastFrogHeartSpawn = now - FROG_HEART_SPAWN_RATE + 13000; // Spawns at ~13s
-    this.lastFrogRedEyesSpawn = now - FROG_REDEYES_SPAWN_RATE + 18000; // Spawns at ~18s
-    this.lastFrogHypnoSpawn = now - FROG_HYPNO_SPAWN_RATE + 24000; // Spawns at ~24s
+    this.lastPillSpawn = now - PILL_SPAWN_RATE + 3000;
+    this.lastCoffeeSpawn = now - COFFEE_SPAWN_RATE + 6000;
+    this.lastCigaretteSpawn = now - CIGARETTE_SPAWN_RATE + 9000;
+    this.lastFrogHeartSpawn = now - FROG_HEART_SPAWN_RATE + 13000;
+    this.lastFrogRedEyesSpawn = now - FROG_REDEYES_SPAWN_RATE + 18000;
+    this.lastFrogHypnoSpawn = now - FROG_HYPNO_SPAWN_RATE + 24000;
+    this.lastBeerSpawn = now - BEER_SPAWN_RATE + 16000;
     this.lastAnyCollectibleSpawn = now;
+
+    this.lives = MAX_LIVES;
+    this.updateLivesUI();
 
     this.isPlaying = true;
     this.app.ticker.add((ticker) => this.gameLoop(ticker));
@@ -150,7 +184,7 @@ export class GameManager {
     this.app.stage.addChild(this.scoreText);
 
     this.livesContainer = new PIXI.Container();
-    this.livesContainer.x = this.app.screen.width - 20;
+    this.livesContainer.x = this.app.screen.width / 2;
     this.livesContainer.y = 20;
     this.app.stage.addChild(this.livesContainer);
   }
@@ -164,12 +198,22 @@ export class GameManager {
     this.livesContainer.removeChildren();
     if (!this.frogHeartTexture) return;
 
+    const spacing = 10;
+    const heartScale = 0.2;
+    
+    // We need one sprite to calculate width
+    const tempSprite = new PIXI.Sprite(this.frogHeartTexture);
+    tempSprite.scale.set(heartScale);
+    const heartWidth = tempSprite.width;
+    
+    const totalWidth = this.lives * heartWidth + (this.lives - 1) * spacing;
+    const startX = -totalWidth / 2;
+
     for (let i = 0; i < this.lives; i++) {
         const sprite = new PIXI.Sprite(this.frogHeartTexture);
-        sprite.anchor.set(1, 0); // top right
-        // Add padding between hearts, draw from right to left
-        sprite.scale.set(0.15); // Reduced scale to make them smaller (was 0.25)
-        sprite.x = -(i * (sprite.width + 10)); 
+        sprite.anchor.set(0, 0); // top left
+        sprite.scale.set(heartScale);
+        sprite.x = startX + i * (heartWidth + spacing);
         this.livesContainer.addChild(sprite);
     }
   }
@@ -275,7 +319,15 @@ export class GameManager {
 
     this.background.update(ticker, totalSpeedMultiplier);
     this.undergroundBg.tilePosition.x -= SCROLL_SPEED * ticker.deltaTime * totalSpeedMultiplier;
-    this.player.update(ticker);
+    
+    if (this.beerEffectActive) {
+        this.player.update(ticker);
+        // Add a gentle "drunk" wave to the movement speed
+        const sway = Math.sin(Date.now() * 0.004) * 1.5;
+        this.player.setY(this.player.getY() + sway * ticker.deltaTime);
+    } else {
+        this.player.update(ticker);
+    }
     
     // Increase obstacle spawn rate dynamically
     const difficultyMultiplier = Math.max(0.5, 1 - (this.score / 50));
@@ -310,6 +362,10 @@ export class GameManager {
         this.collectibles.spawn('frog_hypno');
         this.lastFrogHypnoSpawn = Date.now() + this.getRandomOffset(FROG_HYPNO_SPAWN_RATE);
         this.lastAnyCollectibleSpawn = Date.now();
+      } else if (Date.now() - this.lastBeerSpawn > BEER_SPAWN_RATE / totalSpeedMultiplier) {
+        this.collectibles.spawn('beer');
+        this.lastBeerSpawn = Date.now() + this.getRandomOffset(BEER_SPAWN_RATE);
+        this.lastAnyCollectibleSpawn = Date.now();
       }
     }
 
@@ -318,6 +374,16 @@ export class GameManager {
     if (playerBounds) {
       this.collectibles.collectibles.forEach((c, index) => {
           if (this.rectIntersect(playerBounds, c.getBounds())) {
+              const now = Date.now();
+              if (now - this.lastCollectionTime < this.COMBO_TIMEOUT) {
+                this.comboCount++;
+              } else {
+                this.comboCount = 1;
+              }
+              this.lastCollectionTime = now;
+
+              this.showCollectionEffect(c.collectibleType, c.x, c.y, this.comboCount);
+
               if (c.collectibleType === 'pill') {
                 this.activatePillEffect();
               } else if (c.collectibleType === 'coffee') {
@@ -328,6 +394,8 @@ export class GameManager {
                 this.activateFrogHeartEffect();
               } else if (c.collectibleType === 'frog_redeyes') {
                 this.activateFrogRedEyesEffect();
+              } else if (c.collectibleType === 'beer') {
+                this.activateBeerEffect();
               } else {
                 this.activateFrogHypnoEffect();
               }
@@ -367,13 +435,53 @@ export class GameManager {
 
       if (this.redEyesEffectActive) {
         this.redEyesTimer -= ticker.deltaMS;
+        
+        // Pulse the center frog (no rotation)
+        const pulse = 1.0 + Math.sin(Date.now() * 0.01) * 0.2;
+        this.redEyesFrogSprite.scale.set(0.6 * pulse);
+
         if (this.redEyesTimer <= 0) this.deactivateFrogRedEyesEffect();
+      }
+
+      if (this.beerEffectActive) {
+        this.beerTimer -= ticker.deltaMS;
+        
+        // Record history for phantoms
+        if (this.player.sprite) {
+            this.playerPosHistory.unshift({ x: this.player.sprite.x, y: this.player.sprite.y, rotation: this.player.sprite.rotation });
+        }
+        if (this.playerPosHistory.length > 50) this.playerPosHistory.pop();
+
+        // Update phantoms
+        this.beerPhantoms.forEach((p, i) => {
+            const delay = (i + 1) * 10;
+            const historyPos = this.playerPosHistory[Math.min(delay, this.playerPosHistory.length - 1)];
+            if (historyPos) {
+                p.position.set(historyPos.x, historyPos.y);
+                p.rotation = historyPos.rotation;
+            }
+        });
+
+        // Environmental effect: pulsing blur and slight horizontal shift
+        const pulseTime = Date.now() * 0.002;
+        const blurPulse = Math.abs(Math.sin(pulseTime)) * 3;
+        this.blurFilter.strength = blurPulse;
+        
+        // Slight horizontal shift/shake
+        this.bgContainer.x = Math.sin(pulseTime * 2) * 2;
+
+        if (this.beerTimer <= 0) this.deactivateBeerEffect();
       }
 
       if (this.hypnoEffectActive) {
         this.hypnoTimer -= ticker.deltaMS;
         this.hypnoSpiralAngle += 0.08 * totalSpeedMultiplier;
         this.hypnoSpiralOverlay.rotation = this.hypnoSpiralAngle;
+        
+        // Pulse the hypno frog
+        const pulse = 1.0 + Math.sin(Date.now() * 0.005) * 0.15;
+        this.hypnoFrogSprite.scale.set(0.5 * pulse);
+
         if (this.hypnoTimer <= 0) this.deactivateFrogHypnoEffect();
       }
 
@@ -436,27 +544,96 @@ export class GameManager {
     this.redEyesTimer = FROG_REDEYES_DURATION;
     this.player.setBerserkVisuals(true);
     this.redGradientOverlay.visible = true;
+    this.redEyesFrogSprite.visible = true;
+
+    // Show announcement
+    const announceStyle = new PIXI.TextStyle({
+        fontFamily: '"Press Start 2P"',
+        fontSize: 32,
+        fill: '#ff0000',
+        stroke: { color: '#ffffff', width: 4 },
+        align: 'center',
+        wordWrap: true,
+        wordWrapWidth: this.app.screen.width * 0.8
+    });
+    const announceText = new PIXI.Text({ text: 'YOU ARE AN\nIMMORTAL SON\nOF A BITCH!', style: announceStyle });
+    announceText.anchor.set(0.5);
+    announceText.position.set(this.app.screen.width / 2, this.app.screen.height / 2);
+    this.effectsContainer.addChild(announceText);
+
+    // Dramatic entrance animation
+    let elapsed = 0;
+    const duration = 2000;
+    const ticker = (t: PIXI.Ticker) => {
+        elapsed += t.deltaMS;
+        const progress = elapsed / duration;
+        
+        const scale = 0.5 + Math.sin(progress * Math.PI) * 1.5;
+        announceText.scale.set(scale);
+        announceText.alpha = 1 - Math.pow(progress, 3);
+        
+        // Shake
+        announceText.x = this.app.screen.width / 2 + (Math.random() - 0.5) * 20 * (1 - progress);
+
+        if (progress >= 1) {
+            this.app.ticker.remove(ticker);
+            announceText.destroy();
+        }
+    };
+    this.app.ticker.add(ticker);
   }
 
   private deactivateFrogRedEyesEffect() {
     this.redEyesEffectActive = false;
     this.player.setBerserkVisuals(false);
     this.redGradientOverlay.visible = false;
+    this.redEyesFrogSprite.visible = false;
   }
 
   private activateFrogHypnoEffect() {
     this.hypnoEffectActive = true;
     this.hypnoTimer = FROG_HYPNO_DURATION;
     this.hypnoSpiralOverlay.visible = true;
+    this.hypnoFrogSprite.visible = true;
     
     // Invert the world!
     this.gameContainer.scale.y = -1;
     this.gameContainer.y = this.app.screen.height;
+
+    // Show announcement
+    const announceStyle = new PIXI.TextStyle({
+        fontFamily: '"Press Start 2P"',
+        fontSize: 18,
+        fill: '#68f276',
+        stroke: { color: '#000000', width: 4 },
+        align: 'center'
+    });
+    const announceText = new PIXI.Text({ text: "I THINK I'M GONNA\nPUKE...", style: announceStyle });
+    announceText.anchor.set(0.5);
+    announceText.position.set(this.app.screen.width / 2, this.app.screen.height / 2 - 100);
+    this.effectsContainer.addChild(announceText);
+
+    // Subtle fade in/out animation
+    let elapsed = 0;
+    const duration = 2000;
+    const ticker = (t: PIXI.Ticker) => {
+        elapsed += t.deltaMS;
+        const progress = elapsed / duration;
+        announceText.alpha = Math.sin(progress * Math.PI);
+        announceText.y -= 0.5 * t.deltaTime;
+
+        if (progress >= 1) {
+            this.app.ticker.remove(ticker);
+            announceText.destroy();
+        }
+    };
+    this.app.ticker.add(ticker);
   }
 
   private deactivateFrogHypnoEffect() {
     this.hypnoEffectActive = false;
     this.hypnoSpiralOverlay.visible = false;
+    this.hypnoFrogSprite.visible = false;
     
     // Restore the world gravity mapping
     this.gameContainer.scale.y = 1;
@@ -528,6 +705,128 @@ export class GameManager {
     this.scoreText.style.fill = '#ffffff';
   }
 
+  private activateBeerEffect() {
+    this.beerEffectActive = true;
+    this.beerTimer = BEER_DURATION;
+    
+    // Create phantoms
+    if (this.player.sprite) {
+        for (let i = 0; i < 2; i++) {
+            const phantom = new PIXI.Sprite(this.player.sprite.texture);
+            phantom.anchor.set(0.5);
+            phantom.alpha = 0.3 - (i * 0.1);
+            phantom.scale.set(this.player.sprite.scale.x);
+            phantom.tint = 0x8888ff; // Slight blue tint for "ghost" look
+            this.objContainer.addChild(phantom);
+            this.beerPhantoms.push(phantom);
+        }
+
+        // Pre-populate history to avoid ghosts being stuck at origin or missing
+        this.playerPosHistory = [];
+        for (let i = 0; i < 50; i++) {
+            this.playerPosHistory.push({ 
+                x: this.player.sprite.x, 
+                y: this.player.sprite.y, 
+                rotation: this.player.sprite.rotation 
+            });
+        }
+    }
+  }
+
+  private deactivateBeerEffect() {
+    this.beerEffectActive = false;
+    this.beerPhantoms.forEach(p => p.destroy());
+    this.beerPhantoms = [];
+    this.playerPosHistory = [];
+    if (this.blurFilter) this.blurFilter.strength = 0;
+    this.bgContainer.x = 0;
+  }
+
+  private showCollectionEffect(type: 'pill' | 'coffee' | 'cigarette' | 'frog_heart' | 'frog_redeyes' | 'frog_hypno' | 'beer', x: number, y: number, combo: number) {
+    const container = new PIXI.Container();
+    container.x = x;
+    container.y = y;
+    this.effectsContainer.addChild(container);
+
+    const style = new PIXI.TextStyle({
+        fontFamily: '"Press Start 2P"',
+        fontSize: 18,
+        fill: 0xffffff,
+        stroke: { color: 0x000000, width: 4 },
+        dropShadow: {
+            alpha: 0.8,
+            angle: Math.PI / 6,
+            blur: 0,
+            color: 0x000000,
+            distance: 4,
+        }
+    });
+
+    const plusText = new PIXI.Text({ text: '+ ', style });
+    plusText.anchor.set(0, 0.5);
+    container.addChild(plusText);
+
+    const texture = this.collectibles.getTexture(type);
+    if (texture) {
+        const icon = new PIXI.Sprite(texture);
+        icon.anchor.set(0, 0.5);
+        icon.x = plusText.width;
+        icon.scale.set(0.1); // Small icon
+        container.addChild(icon);
+    }
+
+    if (combo > 1 || (this.coffeeEffectActive && this.cigaretteEffectActive) || (this.pillEffectActive && this.beerEffectActive) || (type === 'frog_heart' && this.lives >= MAX_LIVES)) {
+        const isPoopEffect = this.coffeeEffectActive && this.cigaretteEffectActive;
+        const isRushEffect = this.pillEffectActive && this.beerEffectActive;
+        const isHealthyEffect = type === 'frog_heart' && this.lives >= MAX_LIVES;
+        
+        const comboStyle = new PIXI.TextStyle({
+            fontFamily: '"Press Start 2P"',
+            fontSize: combo > 5 ? 32 : 24,
+            fill: isRushEffect ? 0xFFFF00 : (isPoopEffect ? 0xFF0000 : (isHealthyEffect ? 0x00FF00 : (combo > 5 ? 0xFFFF00 : 0xFF9900))), 
+            stroke: { color: 0x000000, width: 6 },
+            dropShadow: { color: (isPoopEffect || isRushEffect || isHealthyEffect) ? 0x000000 : 0xff0000, alpha: 0.5, distance: 4, angle: Math.PI/4 }
+        });
+
+        let textContent = `COMBO x${combo}`;
+        if (isRushEffect) textContent = 'РВАНУЛИ!';
+        else if (isPoopEffect) textContent = 'ХОЧУ КАKАТЬ!';
+        else if (isHealthyEffect) textContent = 'ЖИВУЧАЯ ТВАРЬ!';
+
+        const comboText = new PIXI.Text({ text: textContent, style: comboStyle });
+        comboText.anchor.set(0.5);
+        comboText.position.set(0, -40);
+        comboText.name = 'comboText'; // Tag for easier finding
+        container.addChild(comboText);
+        
+        // Mortal Kombat style scale animation
+        comboText.scale.set(0.5);
+    }
+
+    // Animation ticker
+    let elapsed = 0;
+    const duration = 1500;
+    const ticker = (t: PIXI.Ticker) => {
+        elapsed += t.deltaMS;
+        const progress = elapsed / duration;
+        
+        container.y -= 1 * t.deltaTime;
+        container.alpha = 1 - progress;
+
+        // Animate combo text scale if it exists
+        const comboTextObj = container.getChildByName('comboText');
+        if (comboTextObj) {
+            comboTextObj.scale.set(0.5 + Math.sin(progress * Math.PI) * 0.8);
+        }
+
+        if (progress >= 1) {
+            this.app.ticker.remove(ticker);
+            container.destroy({ children: true });
+        }
+    };
+    this.app.ticker.add(ticker);
+  }
+
   private rectIntersect(a: PIXI.Bounds, b: PIXI.Bounds): boolean {
     return a.minX < b.maxX &&
            a.maxX > b.minX &&
@@ -554,6 +853,35 @@ export class GameManager {
     this.deactivateCigaretteEffect();
     this.deactivateFrogRedEyesEffect();
     this.deactivateFrogHypnoEffect();
+    this.deactivateBeerEffect();
+
+    // Death announcement Style
+    const style = new PIXI.TextStyle({
+        fontFamily: '"Press Start 2P"',
+        fontSize: 64,
+        fill: '#FF0000',
+        fontWeight: 'bold',
+        stroke: { color: '#000000', width: 8 },
+        dropShadow: { color: '#000000', alpha: 0.5, distance: 6, angle: Math.PI / 4 }
+    });
+    const text = new PIXI.Text({ text: 'ОКАК!', style });
+    text.anchor.set(0.5);
+    text.position.set(this.app.screen.width / 2, this.app.screen.height / 2);
+    this.effectsContainer.addChild(text);
+
+    // Animation for ОКАК!
+    let elapsed = 0;
+    const ticker = (t: PIXI.Ticker) => {
+        elapsed += t.deltaMS;
+        const pulse = 1 + Math.sin(elapsed * 0.01) * 0.1;
+        text.scale.set(pulse);
+        if (elapsed > 2000) {
+            this.app.ticker.remove(ticker);
+            text.destroy();
+        }
+    };
+    this.app.ticker.add(ticker);
+
     this.player.die(type);
     
     // Slight delay before transitioning down
@@ -561,12 +889,20 @@ export class GameManager {
         this.coffinSprite.visible = true;
         // Scene transition effect: camera move down smoothly
         const transitionTicker = new PIXI.Ticker();
+        const targetStageY = -this.app.screen.height;
+        const targetCoffinY = this.app.screen.height + (this.app.screen.height * 0.5);
+
         transitionTicker.add(() => {
-            if (this.app.stage.y > -this.app.screen.height) {
-                // Ease out movement
-                this.app.stage.y += (-this.app.screen.height - this.app.stage.y) * 0.05;
-                if (Math.abs(-this.app.screen.height - this.app.stage.y) < 1) {
-                    this.app.stage.y = -this.app.screen.height;
+            // Animate camera
+            if (this.app.stage.y > targetStageY) {
+                this.app.stage.y += (targetStageY - this.app.stage.y) * 0.05;
+                
+                // Animate coffin sliding up faster than camera
+                this.coffinSprite.y += (targetCoffinY - this.coffinSprite.y) * 0.08;
+
+                if (Math.abs(targetStageY - this.app.stage.y) < 1) {
+                    this.app.stage.y = targetStageY;
+                    this.coffinSprite.y = targetCoffinY;
                     transitionTicker.stop();
                     
                     // Trigger REACT GAMEOVER State after camera finishes panning

@@ -2,7 +2,7 @@ import * as PIXI from 'pixi.js';
 import { SCROLL_SPEED } from './constants';
 
 export interface CollectibleSprite extends PIXI.Sprite {
-  collectibleType: 'pill' | 'coffee' | 'cigarette' | 'frog_heart' | 'frog_redeyes' | 'frog_hypno';
+  collectibleType: 'pill' | 'coffee' | 'cigarette' | 'frog_heart' | 'frog_redeyes' | 'frog_hypno' | 'beer';
 }
 
 export class Collectibles {
@@ -14,6 +14,7 @@ export class Collectibles {
   private frogHeartTexture: PIXI.Texture | null = null;
   private frogRedEyesTexture: PIXI.Texture | null = null;
   private frogHypnoTexture: PIXI.Texture | null = null;
+  private beerTexture: PIXI.Texture | null = null;
   public collectibles: CollectibleSprite[] = [];
 
   constructor(app: PIXI.Application, container: PIXI.Container) {
@@ -29,9 +30,21 @@ export class Collectibles {
     this.frogHeartTexture = await PIXI.Assets.load('/frog_heart_sprite.png');
     this.frogRedEyesTexture = await PIXI.Assets.load('/frog_redeyes_sprite.png');
     this.frogHypnoTexture = await PIXI.Assets.load('/frog_hypno_sprite.png');
+    this.beerTexture = await PIXI.Assets.load('/beer_sprite.png').catch(() => this.pillTexture);
   }
 
-  spawn(type: 'pill' | 'coffee' | 'cigarette' | 'frog_heart' | 'frog_redeyes' | 'frog_hypno', x?: number) {
+  public getTexture(type: 'pill' | 'coffee' | 'cigarette' | 'frog_heart' | 'frog_redeyes' | 'frog_hypno'): PIXI.Texture | null {
+    if (type === 'pill') return this.pillTexture;
+    if (type === 'coffee') return this.coffeeTexture;
+    if (type === 'cigarette') return this.cigaretteTexture;
+    if (type === 'frog_heart') return this.frogHeartTexture;
+    if (type === 'frog_redeyes') return this.frogRedEyesTexture;
+    if (type === 'frog_hypno') return this.frogHypnoTexture;
+    if (type === 'beer') return this.beerTexture;
+    return null;
+  }
+
+  spawn(type: 'pill' | 'coffee' | 'cigarette' | 'frog_heart' | 'frog_redeyes' | 'frog_hypno' | 'beer', x?: number) {
     let texture = null;
     if (type === 'pill') texture = this.pillTexture;
     else if (type === 'coffee') texture = this.coffeeTexture;
@@ -39,6 +52,7 @@ export class Collectibles {
     else if (type === 'frog_heart') texture = this.frogHeartTexture;
     else if (type === 'frog_redeyes') texture = this.frogRedEyesTexture;
     else if (type === 'frog_hypno') texture = this.frogHypnoTexture;
+    else if (type === 'beer') texture = this.beerTexture;
     if (!texture) return;
 
     const collectible = new PIXI.Sprite(texture) as CollectibleSprite;
