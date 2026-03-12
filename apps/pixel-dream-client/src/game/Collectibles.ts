@@ -33,7 +33,7 @@ export class Collectibles {
     this.beerTexture = await PIXI.Assets.load('/beer_sprite.png').catch(() => this.pillTexture);
   }
 
-  public getTexture(type: 'pill' | 'coffee' | 'cigarette' | 'frog_heart' | 'frog_redeyes' | 'frog_hypno'): PIXI.Texture | null {
+  public getTexture(type: 'pill' | 'coffee' | 'cigarette' | 'frog_heart' | 'frog_redeyes' | 'frog_hypno' | 'beer'): PIXI.Texture | null {
     if (type === 'pill') return this.pillTexture;
     if (type === 'coffee') return this.coffeeTexture;
     if (type === 'cigarette') return this.cigaretteTexture;

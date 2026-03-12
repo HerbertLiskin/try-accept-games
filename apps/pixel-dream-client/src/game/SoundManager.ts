@@ -1,13 +1,23 @@
 export class SoundManager {
   private bgmAudio: HTMLAudioElement | null = null;
   private isMuted: boolean = false;
-  private tracks: string[] = ['/bgm1.mp3', '/bgm2.mp3']; // Placeholder tracks
+  private tracks: string[] = ['/ritual.mp3', '/glaza.mp3']; // Placeholder tracks
   private currentTrackIndex: number = 0;
 
   init() {
+    if (this.bgmAudio) return; // Keep playing if already active
     this.bgmAudio = new Audio(this.tracks[this.currentTrackIndex]);
     this.bgmAudio.loop = true;
     this.bgmAudio.volume = 0.5;
+  }
+
+  destroy() {
+    if (this.bgmAudio) {
+      this.bgmAudio.pause();
+      this.bgmAudio.src = '';
+      this.bgmAudio.load();
+      this.bgmAudio = null;
+    }
   }
 
   playBgm() {

@@ -1,1 +1,42 @@
-/* App.css styles have been migrated to Tailwind utility classes */
+@keyframes glitch {
+  0% { transform: translate(0); }
+  20% { transform: translate(-2px, 2px); }
+  40% { transform: translate(-2px, -2px); }
+  60% { transform: translate(2px, 2px); }
+  80% { transform: translate(2px, -2px); }
+  100% { transform: translate(0); }
+}
+
+@keyframes scaleIn {
+  from { transform: scale(0.8); opacity: 0; }
+  to { transform: scale(1); opacity: 1; }
+}
+
+@keyframes fadeOut {
+  from { opacity: 1; }
+  to { opacity: 0; }
+}
+
+.splash-text {
+  font-family: 'Press Start 2P', cursive;
+  color: white;
+  text-align: center;
+  animation: scaleIn 0.8s ease-out forwards;
+  letter-spacing: 4px;
+}
+
+.splash-games {
+  color: #FF0000;
+  text-shadow: 4px 4px 0px rgba(0,0,0,0.5);
+  animation: scaleIn 0.8s ease-out forwards, glitch 0.2s infinite;
+}
+
+.splash-presents {
+  font-size: 1.5rem;
+  color: #3b285c;
+  text-shadow: 2px 2px 0px white;
+}
+
+.fade-out {
+  animation: fadeOut 0.5s ease-in forwards !important;
+}

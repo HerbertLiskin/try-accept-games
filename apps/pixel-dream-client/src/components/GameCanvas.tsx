@@ -37,6 +37,7 @@ export default function GameCanvas({ onGameOver }: GameCanvasProps) {
 
       return () => {
         window.removeEventListener('resize', handleResize);
+        gameManager.destroy(); // CLEANUP GAME SYSTEMS (SOUND, ETC)
         app.destroy({ removeView: true }, { children: true });
       };
     };

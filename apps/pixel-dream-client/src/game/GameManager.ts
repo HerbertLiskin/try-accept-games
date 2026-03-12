@@ -23,7 +23,7 @@ export class GameManager {
   private scoreText!: PIXI.Text;
   private livesContainer!: PIXI.Container;
   private frogHeartTexture: PIXI.Texture | null = null;
-  private undergroundBg!: PIXI.TilingSprite;
+  private undergroundBg!: PIXI.Sprite;
   private coffinSprite!: PIXI.Sprite;
   private rainbowOverlay!: PIXI.Graphics;
   private speedLinesOverlay!: PIXI.Graphics;
@@ -85,17 +85,15 @@ export class GameManager {
     
     this.frogHeartTexture = await PIXI.Assets.load('/frog_heart_sprite.png');
 
-    // Underground background (always drawn behind player, placed below twilight bg initially)
+    // Underground background (Hell Tavern)
     const undergroundTex = await PIXI.Assets.load('/underground_bg.png');
     const ugScale = this.app.screen.height / undergroundTex.height;
     
-    this.undergroundBg = new PIXI.TilingSprite({
-      texture: undergroundTex,
-      width: this.app.screen.width / ugScale,
-      height: undergroundTex.height
-    });
+    this.undergroundBg = new PIXI.Sprite(undergroundTex);
+    this.undergroundBg.anchor.set(0.5, 0);
     this.undergroundBg.scale.set(ugScale);
-    this.undergroundBg.y = this.app.screen.height; // starts exactly below the screen
+    this.undergroundBg.x = this.app.screen.width / 2;
+    this.undergroundBg.y = this.app.screen.height; 
     this.bgContainer.addChild(this.undergroundBg);
 
     // Coffin sprite (hidden initially)
@@ -142,9 +140,6 @@ export class GameManager {
     this.setupUI();
     this.app.stage.addChild(this.effectsContainer); // Topmost
     this.setupControls();
-
-    soundManager.init();
-    soundManager.playBgm();
 
     const now = Date.now();
     // Stagger initial spawns to introduce items earlier in the run
@@ -318,7 +313,6 @@ export class GameManager {
     const totalSpeedMultiplier = this.permanentSpeedMultiplier * activeEffectMultiplier;
 
     this.background.update(ticker, totalSpeedMultiplier);
-    this.undergroundBg.tilePosition.x -= SCROLL_SPEED * ticker.deltaTime * totalSpeedMultiplier;
     
     if (this.beerEffectActive) {
         this.player.update(ticker);
@@ -411,7 +405,7 @@ export class GameManager {
     }
 
     // Handle Active Effects
-    if (this.pillEffectActive || this.coffeeEffectActive || this.cigaretteEffectActive || this.redEyesEffectActive || this.hypnoEffectActive) {
+    if (this.pillEffectActive || this.coffeeEffectActive || this.cigaretteEffectActive || this.redEyesEffectActive || this.hypnoEffectActive || this.beerEffectActive) {
       if (this.pillEffectActive) {
         this.pillTimer -= ticker.deltaMS;
         this.rainbowHue = (this.rainbowHue + 5) % 360;
@@ -706,6 +700,7 @@ export class GameManager {
   }
 
   private activateBeerEffect() {
+    this.deactivateBeerEffect(); // Reset if already active
     this.beerEffectActive = true;
     this.beerTimer = BEER_DURATION;
     
@@ -796,7 +791,7 @@ export class GameManager {
         const comboText = new PIXI.Text({ text: textContent, style: comboStyle });
         comboText.anchor.set(0.5);
         comboText.position.set(0, -40);
-        comboText.name = 'comboText'; // Tag for easier finding
+        comboText.label = 'comboText'; // Tag for easier finding
         container.addChild(comboText);
         
         // Mortal Kombat style scale animation
@@ -905,14 +900,25 @@ export class GameManager {
                     this.coffinSprite.y = targetCoffinY;
                     transitionTicker.stop();
                     
+                    
                     // Trigger REACT GAMEOVER State after camera finishes panning
                     this.app.ticker.stop();
-                    soundManager.stopBgm();
                     this.onGameOver(Math.floor(this.score));
                 }
             }
         });
         transitionTicker.start();
     }, 1000);
+  }
+
+  public destroy() {
+    this.isPlaying = false;
+    if (this.app && this.app.ticker) {
+      this.app.ticker.remove(this.gameLoop, this);
+    }
+    // Clear filters to avoid rendering issues during destruction
+    if (this.bgContainer) {
+      this.bgContainer.filters = [];
+    }
   }
 }
