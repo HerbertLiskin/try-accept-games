@@ -53,10 +53,16 @@ function App() {
     tryAccept: 'TRY.ACCEPT',
     streaming: isRussian ? 'СЛУШАТЬ В СТРИМИНГЕ' : 'LISTEN ON STREAMING',
     description: isRussian ? 'Лети сквозь сумерки. Избегай петлей и бритв.' : 'Fly through the twilight. Avoid nooses and razors.',
+    loadingSub: isRussian ? <>НАБЕРИСЬ ТЕРПЕНИЯ,<br/>СУКИН СЫН!</> : <>НАБЕРИСЬ ТЕРПЕНИЯ,<br/>СУКИН СЫН!</>,
   };
 
   useEffect(() => {
+    // If we are blocked by orientation or installation instructions, don't progress the state timers
+    const isBlocked = (isMobile && !isStandalone) || (isMobile && isStandalone && isPortrait);
+
     if (gameState === 'LOADING') {
+      if (isBlocked) return;
+
       let dots = 0;
       const interval = setInterval(() => {
         dots = (dots + 1) % 4;
@@ -75,6 +81,8 @@ function App() {
     }
     
     if (gameState === 'SPLASH') {
+      if (isBlocked) return;
+
       const timers: NodeJS.Timeout[] = [];
       
       // Step 0: ОКАК! GAMES
@@ -97,7 +105,7 @@ function App() {
     if (gameState === 'MENU') {
       // Audio is handled by the interaction listener
     }
-  }, [gameState]);
+  }, [gameState, isMobile, isStandalone, isPortrait]);
 
   // const toggleFullscreen = () => {
   //   if (!containerRef.current) return;
@@ -126,9 +134,20 @@ function App() {
     };
     window.addEventListener('click', handleInteraction);
     window.addEventListener('keydown', handleInteraction);
+
+    const handleVisibilityChange = () => {
+      if (document.visibilityState === 'hidden') {
+        soundManager.stopBgm();
+      } else if (document.visibilityState === 'visible') {
+        soundManager.playBgm();
+      }
+    };
+    document.addEventListener('visibilitychange', handleVisibilityChange);
+
     return () => {
       window.removeEventListener('click', handleInteraction);
       window.removeEventListener('keydown', handleInteraction);
+      document.removeEventListener('visibilitychange', handleVisibilityChange);
     };
   }, []);
 
@@ -172,7 +191,7 @@ function App() {
               <span className="w-[3em] text-left ml-2">{loadingText.replace('LOADING', '')}</span>
             </div>
             <div className="text-brandRed text-[1.2rem] font-['Press_Start_2P'] animate-pulse text-center px-4 max-w-[80%] leading-relaxed">
-              НАБЕРИСЬ ТЕРПЕНИЯ,<br/>СУКИН СЫН!
+              {t.loadingSub}
             </div>
           </div>
         )}
