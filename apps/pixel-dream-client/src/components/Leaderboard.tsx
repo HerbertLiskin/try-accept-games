@@ -62,7 +62,7 @@ export default function Leaderboard({ score }: LeaderboardProps) {
             {
               leaderboardQuery.data.map((entry, index) => (
                 <div key={entry.id} className="flex justify-between mb-2 text-[0.7rem] border-b-2 border-dashed border-[#444] pb-2 text-white">
-                  <span className="overflow-hidden text-ellipsis whitespace-nowrap max-w-[150px] inline-block">
+                  <span className="overflow-hidden text-ellipsis whitespace-nowrap max-w-[250px] inline-block">
                     {index + 1}. {entry.name}
                   </span>
                   <span className="text-brandRed">{entry.score}</span>
