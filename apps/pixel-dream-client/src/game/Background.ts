@@ -13,25 +13,28 @@ export class Background {
 
   async init() {
     const texture = await PIXI.Assets.load('/twilight_bg.png');
-    
-    // Scale to fill height
-    const scale = this.app.screen.height / texture.height;
-
-    // Create a TilingSprite that covers the entire width of the screen, 
-    // and is tall enough to match the scaled texture height
     this.bgTilingSprite = new PIXI.TilingSprite({
       texture,
       width: this.app.screen.width,
-      height: texture.height
+      height: this.app.screen.height
     });
+    this.resize();
+    this.container.addChild(this.bgTilingSprite);
+  }
+
+  resize() {
+    if (!this.bgTilingSprite) return;
+    
+    const texture = this.bgTilingSprite.texture;
+    // Fit to height to avoid "overstretched" vertically
+    const scale = this.app.screen.height / texture.height;
 
     this.bgTilingSprite.scale.set(scale);
     
-    // Since we scaled it, we want the tiling width to effectively cover the screen width independently of the scale
-    // So we adjust the requested width dividing by the scale
+    // Cover the full width by tiling (since it's a TilingSprite)
     this.bgTilingSprite.width = this.app.screen.width / scale;
-
-    this.container.addChild(this.bgTilingSprite);
+    // Height stays matched to texture height (via scale)
+    this.bgTilingSprite.height = texture.height;
   }
 
   update(delta: PIXI.Ticker, multiplier: number = 1) {

@@ -32,6 +32,7 @@ export default function GameCanvas({ onGameOver }: GameCanvasProps) {
       // Handle window resize
       const handleResize = () => {
         app.renderer.resize(window.innerWidth, window.innerHeight);
+        gameManager.resize();
       };
       window.addEventListener('resize', handleResize);
 

@@ -3,12 +3,13 @@ import { useState } from 'react';
 
 interface LeaderboardProps {
   score: number;
+  hideSubmission?: boolean;
 }
 
-export default function Leaderboard({ score }: LeaderboardProps) {
+export default function Leaderboard({ score, hideSubmission = false }: LeaderboardProps) {
   const [name, setName] = useState('');
   const [submitted, setSubmitted] = useState(false);
-  const [limit, setLimit] = useState(5);
+  const [limit, setLimit] = useState(10);
   
   const utils = trpc.useUtils();
   const leaderboardQuery = trpc.getLeaderboard.useQuery({ limit });
@@ -32,9 +33,10 @@ export default function Leaderboard({ score }: LeaderboardProps) {
 
   return (
     <div className="w-full text-left">
-      {!submitted ? (
-        <form className="flex flex-col items-center gap-4 w-full text-center" onSubmit={handleSubmit}>
-          <p>You died!<br/>Submit your score: {score}</p>
+      {!hideSubmission && (
+        !submitted ? (
+          <form className="flex flex-col items-center gap-4 w-full text-center" onSubmit={handleSubmit}>
+            <p>You died!<br/>Submit your score: {score}</p>
           <div className="flex w-full justify-center">
             <input 
               type="text" 
@@ -52,7 +54,7 @@ export default function Leaderboard({ score }: LeaderboardProps) {
         </form>
       ) : (
         <p className="text-center text-[#68f276]">Score submitted!</p>
-      )}
+      ))}
 
       <div className='mt-6'> 
         {leaderboardQuery.isLoading && <p className="text-white inline-block">Reading gravestones...</p>}
@@ -60,14 +62,20 @@ export default function Leaderboard({ score }: LeaderboardProps) {
         {leaderboardQuery.data && leaderboardQuery.data.length > 0 ? (
           <>
             {
-              leaderboardQuery.data.map((entry, index) => (
-                <div key={entry.id} className="flex justify-between mb-2 text-[0.7rem] border-b-2 border-dashed border-[#444] pb-2 text-white">
-                  <span className="overflow-hidden text-ellipsis whitespace-nowrap max-w-[250px] inline-block">
-                    {index + 1}. {entry.name}
-                  </span>
-                  <span className="text-brandRed">{entry.score}</span>
-                </div>
-              ))
+              leaderboardQuery.data.map((entry, index) => {
+                const isTop3 = index < 3;
+                const textColor = isTop3 ? 'text-[#FFD700]' : 'text-white';
+                const scoreColor = isTop3 ? 'text-[#FFD700]' : 'text-brandRed';
+                
+                return (
+                  <div key={entry.id} className={`flex justify-between mb-2 text-[0.7rem] border-b-2 border-dashed border-[#444] pb-2 ${textColor}`}>
+                    <span className="overflow-hidden text-ellipsis whitespace-nowrap max-w-[250px] inline-block font-bold">
+                      {index + 1}. {entry.name}
+                    </span>
+                    <span className={scoreColor}>{entry.score}</span>
+                  </div>
+                );
+              })
             }
             {leaderboardQuery.data.length >= limit && (
               <button 

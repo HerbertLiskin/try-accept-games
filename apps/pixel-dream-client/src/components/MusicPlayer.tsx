@@ -3,24 +3,34 @@ import { soundManager } from '../game/SoundManager';
 
 const MusicPlayer: React.FC = () => {
     const [trackName, setTrackName] = useState(soundManager.getCurrentTrackName());
+    const [isPlaying, setIsPlaying] = useState(soundManager.isBgmPlaying());
 
     useEffect(() => {
         const interval = setInterval(() => {
             setTrackName(soundManager.getCurrentTrackName());
+            setIsPlaying(soundManager.isBgmPlaying());
         }, 500);
         return () => clearInterval(interval);
     }, []);
+
+    const handleToggle = (e: React.MouseEvent) => {
+        e.stopPropagation();
+        const nextState = soundManager.togglePlayback();
+        setIsPlaying(nextState);
+    };
 
     const handlePrev = (e: React.MouseEvent) => {
         e.stopPropagation();
         soundManager.prevTrack();
         setTrackName(soundManager.getCurrentTrackName());
+        setIsPlaying(true);
     };
 
     const handleNext = (e: React.MouseEvent) => {
         e.stopPropagation();
         soundManager.nextTrack();
         setTrackName(soundManager.getCurrentTrackName());
+        setIsPlaying(true);
     };
 
     return (
@@ -35,6 +45,12 @@ const MusicPlayer: React.FC = () => {
                   className="!px-2 !py-1 !text-[0.6rem] !border-2 !bg-[#2a1d42] hover:!bg-[#4a3472] active:scale-90 transition-transform"
                 >
                     &lt;
+                </button>
+                <button 
+                  onClick={handleToggle}
+                  className="w-[40px] h-[30px] active:scale-90 transition-transform flex items-center justify-center min-w-[32px]"
+                >
+                    {isPlaying ? '||' : '>'}
                 </button>
                 <button 
                   onClick={handleNext}

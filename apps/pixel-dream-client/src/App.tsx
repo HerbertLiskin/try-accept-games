@@ -9,7 +9,7 @@ interface IOSNavigator extends Navigator {
   standalone?: boolean;
 }
 
-type GameState = 'LOADING' | 'SPLASH' | 'MENU' | 'PLAYING' | 'GAMEOVER';
+type GameState = 'LOADING' | 'SPLASH' | 'MENU' | 'PLAYING' | 'GAMEOVER' | 'LEADERBOARD';
 
 function App() {
   const [gameState, setGameState] = useState<GameState>('LOADING');
@@ -107,6 +107,30 @@ function App() {
       // Audio is handled by the interaction listener
     }
   }, [gameState, isMobile, isStandalone, isPortrait]);
+
+  // Handle URL routing
+  useEffect(() => {
+    const handleLocation = () => {
+      const path = window.location.pathname;
+      if (path === '/leaderboard') {
+        setGameState('LEADERBOARD');
+      } else {
+        // If we are already in LEADERBOARD state and user manually changes URL to something else
+        if (gameState === 'LEADERBOARD') {
+           setGameState('MENU');
+        }
+      }
+    };
+
+    handleLocation();
+    window.addEventListener('popstate', handleLocation);
+    return () => window.removeEventListener('popstate', handleLocation);
+  }, [gameState]);
+
+  const navigateToGame = () => {
+    window.history.pushState({}, '', '/');
+    setGameState('MENU');
+  };
 
   // const toggleFullscreen = () => {
   //   if (!containerRef.current) return;
@@ -244,6 +268,38 @@ function App() {
               >
                 {t.streaming}
               </a>
+            </div>
+          </div>
+        )}
+        {gameState === 'LEADERBOARD' && (
+          <div className="fixed inset-0 z-[150] bg-black pointer-events-auto flex flex-col items-center overflow-auto custom-scrollbar">
+            {/* Background image */}
+            <div 
+              className="fixed inset-0 z-[-1] opacity-60 bg-cover bg-center"
+              style={{ backgroundImage: 'url("/underground_bg.png")' }}
+            />
+            
+            <div className="w-full max-w-[500px] mt-20 mb-20 px-4 flex flex-col items-center">
+               <h1 className="text-[2rem] text-brandRed mb-8 text-center uppercase tracking-widest">TOP RIDGES</h1>
+               
+               <div className="w-full bg-black/60 border-4 border-white shadow-[8px_8px_0px_rgba(0,0,0,0.5)] p-6 mb-8">
+                  <Leaderboard score={0} hideSubmission={true} />
+               </div>
+
+               <div className="w-full flex flex-col gap-4">
+                  <button onClick={navigateToGame} className="w-full !bg-brandRed !text-white text-[1.2rem] py-6 shadow-[6px_6px_0px_#000]">
+                    ЗАРУБИСЬ!
+                  </button>
+                  
+                  <a 
+                    href="https://band.link/ritualpriniatia" 
+                    target="_blank" 
+                    rel="noopener noreferrer"
+                    className="w-full text-center rounded-none border-4 border-white px-[1.2em] py-[1em] text-[0.9rem] font-pixel bg-brandGreen text-black cursor-pointer uppercase transition-colors duration-200 active:translate-y-[2px] active:translate-x-[2px] shadow-[4px_4px_0px_#000] hover:bg-[#3be03b] active:shadow-[2px_2px_0px_#000] no-underline"
+                  >
+                    {t.streaming}
+                  </a>
+               </div>
             </div>
           </div>
         )}

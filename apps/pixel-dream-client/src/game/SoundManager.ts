@@ -7,8 +7,22 @@ export class SoundManager {
   init() {
     if (this.bgmAudio) return; // Keep playing if already active
     this.bgmAudio = new Audio(this.tracks[this.currentTrackIndex]);
-    this.bgmAudio.loop = true;
+    this.bgmAudio.loop = false; // Disable loop to allow 'ended' event
     this.bgmAudio.volume = 0.5;
+    
+    this.bgmAudio.addEventListener('ended', () => {
+      this.nextTrack();
+    });
+  }
+
+  togglePlayback() {
+    if (!this.bgmAudio) return false;
+    if (this.bgmAudio.paused) {
+      this.playBgm();
+    } else {
+      this.stopBgm();
+    }
+    return !this.bgmAudio.paused;
   }
 
   destroy() {

@@ -3,7 +3,6 @@ import { Player } from './Player';
 import { Background } from './Background';
 import { Obstacles } from './Obstacles';
 import { SCROLL_SPEED, OBSTACLE_SPAWN_RATE, PILL_SPAWN_RATE, COFFEE_SPAWN_RATE, CIGARETTE_SPAWN_RATE, FROG_HEART_SPAWN_RATE, FROG_REDEYES_SPAWN_RATE, FROG_HYPNO_SPAWN_RATE, BEER_SPAWN_RATE, INVULNERABILITY_DURATION, MAX_LIVES, PILL_DURATION, COFFEE_DURATION, CIGARETTE_DURATION, FROG_REDEYES_DURATION, FROG_HYPNO_DURATION, BEER_DURATION } from './constants';
-import { soundManager } from './SoundManager';
 import { Collectibles } from './Collectibles';
 
 export class GameManager {
@@ -30,6 +29,8 @@ export class GameManager {
   private vignetteOverlay!: PIXI.Graphics;
   private redGradientOverlay!: PIXI.Sprite;
   private hypnoSpiralOverlay!: PIXI.Graphics;
+  private underworldContainer!: PIXI.Container;
+  private underworldMask!: PIXI.Graphics;
   private hypnoSpiralAngle = 0;
   private blurFilter!: PIXI.BlurFilter;
   
@@ -87,14 +88,19 @@ export class GameManager {
 
     // Underground background (Hell Tavern)
     const undergroundTex = await PIXI.Assets.load('/underground_bg.png');
-    const ugScale = this.app.screen.height / undergroundTex.height;
-    
     this.undergroundBg = new PIXI.Sprite(undergroundTex);
-    this.undergroundBg.anchor.set(0.5, 0);
-    this.undergroundBg.scale.set(ugScale);
-    this.undergroundBg.x = this.app.screen.width / 2;
-    this.undergroundBg.y = this.app.screen.height; 
-    this.bgContainer.addChild(this.undergroundBg);
+    this.undergroundBg.anchor.set(0.5);
+
+    this.underworldContainer = new PIXI.Container();
+    this.bgContainer.addChild(this.underworldContainer);
+
+    this.underworldMask = new PIXI.Graphics();
+    this.underworldContainer.addChild(this.underworldMask);
+    this.underworldContainer.mask = this.underworldMask;
+
+    this.underworldContainer.addChild(this.undergroundBg);
+    
+    this.resize(); // Initial scaling
 
     // Coffin sprite (hidden initially)
     const coffinTex = await PIXI.Assets.load('/coffin_sprite.png');
@@ -288,9 +294,6 @@ export class GameManager {
 
     window.addEventListener('keydown', (e) => {
       if (e.code === 'Space') jump();
-      // Track switching/muting hotkeys
-      if (e.code === 'KeyM') soundManager.toggleMute();
-      if (e.code === 'KeyN') soundManager.nextTrack();
     });
 
     // Touch and mouse click
@@ -884,6 +887,7 @@ export class GameManager {
         // Scene transition effect: camera move down smoothly
         const transitionTicker = new PIXI.Ticker();
         const targetStageY = -this.app.screen.height;
+        // Coffin should end up exactly in the middle of the screen after transition
         const targetCoffinY = this.app.screen.height + (this.app.screen.height * 0.5);
 
         transitionTicker.add(() => {
@@ -908,6 +912,29 @@ export class GameManager {
         });
         transitionTicker.start();
     }, 1000);
+  }
+
+  public resize() {
+    this.background.resize();
+    
+    if (this.underworldContainer && this.underworldMask && this.undergroundBg) {
+        // Position container at the start of the underworld
+        this.underworldContainer.y = this.app.screen.height;
+
+        // Update mask to strictly cover one screen height
+        this.underworldMask.clear();
+        this.underworldMask.rect(0, 0, this.app.screen.width, this.app.screen.height);
+        this.underworldMask.fill(0xffffff);
+
+        const texture = this.undergroundBg.texture;
+        const scaleX = this.app.screen.width / texture.width;
+        const scaleY = this.app.screen.height / texture.height;
+        const ugScale = Math.max(scaleX, scaleY);
+        
+        this.undergroundBg.scale.set(ugScale);
+        this.undergroundBg.x = this.app.screen.width / 2;
+        this.undergroundBg.y = this.app.screen.height / 2; // Center relative to underworldContainer
+    }
   }
 
   public destroy() {
