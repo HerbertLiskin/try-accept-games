@@ -548,7 +548,7 @@ export class GameManager {
         wordWrap: true,
         wordWrapWidth: this.app.screen.width * 0.8
     });
-    const announceText = new PIXI.Text({ text: 'YOU ARE AN\nIMMORTAL SON\nOF A BITCH!', style: announceStyle });
+    const announceText = new PIXI.Text({ text: 'ТЫ БЕССМЕРТНЫЙ\nСУКИН СЫН!', style: announceStyle });
     announceText.anchor.set(0.5);
     announceText.position.set(this.app.screen.width / 2, this.app.screen.height / 2);
     this.effectsContainer.addChild(announceText);
@@ -595,12 +595,12 @@ export class GameManager {
     // Show announcement
     const announceStyle = new PIXI.TextStyle({
         fontFamily: '"Press Start 2P"',
-        fontSize: 18,
+        fontSize: 24,
         fill: '#68f276',
         stroke: { color: '#000000', width: 4 },
         align: 'center'
     });
-    const announceText = new PIXI.Text({ text: "I THINK I'M GONNA\nPUKE...", style: announceStyle });
+    const announceText = new PIXI.Text({ text: "КАЖЕТСЯ, СЕЙЧАС\nБЛЕВАНУ...", style: announceStyle });
     announceText.anchor.set(0.5);
     announceText.position.set(this.app.screen.width / 2, this.app.screen.height / 2 - 100);
     this.effectsContainer.addChild(announceText);
