@@ -184,7 +184,7 @@ function App() {
   return (
     <>
       <div ref={containerRef} className="max-w-[100vw] mx-auto text-center flex flex-col justify-center items-center h-screen w-screen overflow-hidden relative z-10 bg-[#3b285c]">
-        {isMobile && !isStandalone && (
+        {isMobile && !isStandalone && gameState !== 'LEADERBOARD' && (
           <div className="fixed inset-0 bg-black z-[10000] flex flex-col items-center justify-center p-8 text-center text-white font-['Press_Start_2P']">
             <h2 className="text-brandRed text-[1.2rem] mb-2 leading-relaxed text-center">{t.installTitle}</h2>
             <h2 className="text-brandRed text-[1.2rem] mb-8 leading-relaxed text-center">{t.installSub}</h2>
@@ -197,7 +197,7 @@ function App() {
           </div>
         )}
 
-        {isMobile && isStandalone && isPortrait && (
+        {isMobile && isStandalone && isPortrait && gameState !== 'LEADERBOARD' && (
           <div className="fixed inset-0 bg-[#1a0f2e] z-[10001] flex flex-col items-center justify-center p-8 text-center text-white font-['Press_Start_2P']">
             <div className="w-24 h-24 mb-8 animate-bounce">
               <svg viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="2" strokeLinecap="round" strokeLinejoin="round" className="text-brandRed">
