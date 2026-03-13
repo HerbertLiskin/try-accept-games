@@ -1,3 +1,4 @@
+/// <reference types="node" />
 import type { Config } from 'drizzle-kit';
 
 export default {
@@ -6,6 +7,6 @@ export default {
   breakpoints: true,
   dialect: 'sqlite',
   dbCredentials: {
-    url: './sqlite.db',
+    url: process.env.DATABASE_URL || './sqlite.db',
   },
 } satisfies Config;
