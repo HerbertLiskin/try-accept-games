@@ -12,7 +12,13 @@ interface IOSNavigator extends Navigator {
 type GameState = 'LOADING' | 'SPLASH' | 'MENU' | 'PLAYING' | 'GAMEOVER' | 'LEADERBOARD';
 
 function App() {
-  const [gameState, setGameState] = useState<GameState>('LOADING');
+  const [gameState, setGameState] = useState<GameState>(() => {
+    if (typeof window !== 'undefined') {
+      const path = window.location.pathname.replace(/\/$/, '');
+      if (path === '/leaderboard') return 'LEADERBOARD';
+    }
+    return 'LOADING';
+  });
   const [splashStep, setSplashStep] = useState(0); // 0: ОКАК! GAMES, 1: PRESENTS, 2: DONE
   const [loadingText, setLoadingText] = useState('LOADING');
   const [isExiting, setIsExiting] = useState(false);
@@ -111,7 +117,7 @@ function App() {
   // Handle URL routing
   useEffect(() => {
     const handleLocation = () => {
-      const path = window.location.pathname;
+      const path = window.location.pathname.replace(/\/$/, '');
       if (path === '/leaderboard') {
         setGameState('LEADERBOARD');
       } else {
@@ -194,6 +200,12 @@ function App() {
               <p>{t.step3}</p>
             </div>
             <p className="mt-12 text-[0.5rem] opacity-50 uppercase italic">{t.pwaOnly}</p>
+            <button 
+              onClick={() => window.location.reload()} 
+              className="mt-4 text-[0.6rem] bg-white/10 hover:bg-white/20 border-none py-2 px-4"
+            >
+              {isRussian ? 'ОБНОВИТЬ СТРАНИЦУ' : 'REFRESH PAGE'}
+            </button>
           </div>
         )}
 
