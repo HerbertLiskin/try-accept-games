@@ -13,4 +13,5 @@ if (!fs.existsSync(dbDir)) {
 }
 
 const sqlite = new Database(dbPath);
+console.log(`Database initialized at: ${dbPath}`);
 export const db = drizzle(sqlite, { schema });
